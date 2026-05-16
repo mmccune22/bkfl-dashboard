@@ -1603,6 +1603,8 @@ function MatterDetail({matter,setMatters,setPage,setSelectedMatter,setSelectedCo
   const [newEvAllDay,setNewEvAllDay]=useState(false);
   const [newEvLocation,setNewEvLocation]=useState("");
   const [newEvAssignee,setNewEvAssignee]=useState("Matt McCune");
+  const [editingMatter,setEditingMatter]=useState(false);
+  const [matterEditForm,setMatterEditForm]=useState({});
 
   if(!matter) return <div style={{padding:40,textAlign:"center",color:"#999"}}>Matter not found.</div>;
 
@@ -1610,6 +1612,36 @@ function MatterDetail({matter,setMatters,setPage,setSelectedMatter,setSelectedCo
   const updateCF=(k,v)=>update({customFields:{...matter.customFields,[k]:v}});
   const startEdit=(f,v)=>{setEditField(f);setEditVal(v||"");};
   const saveEdit=(f,isCF)=>{if(isCF)updateCF(f,editVal);else update({[f]:editVal});setEditField(null);};
+  const openEditMatter=()=>{
+    const primaryContact=(matter.contacts||[]).find(c=>c.role==="Client")||{};
+    const secondContact=(matter.contacts||[]).find(c=>c.role==="Client (Spouse)");
+    const isJoint=!!secondContact;
+    const joint=secondContact?{firstName:secondContact.name.split(" ")[0],lastName:secondContact.name.split(" ").slice(1).join(" "),email:secondContact.email||"",phone:secondContact.phone||""}:{firstName:"",lastName:"",email:"",phone:""};
+    setMatterEditForm({
+      clientName:matter.clientName||"",
+      firstName:primaryContact.name?primaryContact.name.split(" ")[0]:"",
+      lastName:primaryContact.name?primaryContact.name.split(" ").slice(1).join(" "):"",
+      email:primaryContact.email||"",
+      phone:primaryContact.phone||"",
+      description:matter.description||"",
+      bankruptcyType:matter.bankruptcyType||"",
+      responsibleAttorney:matter.responsibleAttorney||"",
+      responsibleStaff:matter.responsibleStaff||"",
+      matterStage:matter.matterStage||"",
+      isJoint,joint
+    });
+    setEditingMatter(true);
+  };
+  const saveEditMatter=()=>{
+    const f=matterEditForm;
+    const contacts=[{id:1,name:(f.firstName+" "+f.lastName).trim(),role:"Client",email:f.email||"",phone:f.phone||""}];
+    if(f.isJoint&&f.joint&&f.joint.firstName&&f.joint.lastName){
+      contacts.push({id:2,name:f.joint.firstName+" "+f.joint.lastName,role:"Client (Spouse)",email:f.joint.email||"",phone:f.joint.phone||""});
+    }
+    const clientName=f.isJoint&&f.joint&&f.joint.firstName?f.firstName+" "+f.lastName+" & "+f.joint.firstName+" "+f.joint.lastName:(f.firstName+" "+f.lastName).trim();
+    update({clientName,contacts,description:f.description,bankruptcyType:f.bankruptcyType,responsibleAttorney:f.responsibleAttorney,responsibleStaff:f.responsibleStaff,matterStage:f.matterStage});
+    setEditingMatter(false);
+  };
   const addNote=()=>{if(!newNote.trim())return;update({notes:[{id:Date.now(),date:new Date().toISOString().split("T")[0],author:"Matt McCune",text:newNote},...matter.notes]});setNewNote("");};
   const sendMessage=()=>{
     if(!composeMsg.trim()||!composeSubject.trim())return;
@@ -1713,7 +1745,7 @@ function MatterDetail({matter,setMatters,setPage,setSelectedMatter,setSelectedCo
         <p style={{color:"#666",fontSize:13,marginBottom:16,paddingLeft:32}}>{matter.description}</p>
         <div style={{display:"flex",gap:8,marginBottom:16,paddingLeft:32}}>
           {["Share"].map(b=><button key={b} style={{padding:"7px 16px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",background:"#fff",color:"#434343",border:"1px solid #d0d0d0"}}>{b}</button>)}
-          <button style={{padding:"7px 16px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",background:"#7A9C80",color:"#fff",border:"none"}}>Edit matter</button>
+          <button onClick={()=>openEditMatter()} style={{padding:"7px 16px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",background:"#7A9C80",color:"#fff",border:"none"}}>Edit matter</button>
         </div>
         <div style={{display:"flex",gap:0,overflowX:"auto",paddingLeft:32}}>
           {tabs.map(t=><button key={t.key} onClick={()=>setTab(t.key)} style={{padding:"10px 18px",fontSize:13,fontWeight:tab===t.key?600:400,cursor:"pointer",color:tab===t.key?"#7A9C80":"#666",background:"none",border:"none",borderBottom:tab===t.key?"3px solid #7A9C80":"3px solid transparent",whiteSpace:"nowrap"}}>{t.label}</button>)}
@@ -1752,7 +1784,7 @@ function MatterDetail({matter,setMatters,setPage,setSelectedMatter,setSelectedCo
             <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}><button onClick={addNote} disabled={!newNote.trim()} style={{background:newNote.trim()?"#7A9C80":"#ccc",color:"#fff",border:"none",borderRadius:6,padding:"8px 20px",fontSize:13,cursor:newNote.trim()?"pointer":"default"}}>Save Note</button></div>
           </div>
           {matter.notes.map(n=>(<div key={n.id} style={{background:"#fff",borderRadius:8,border:"1px solid #e0e0e0",padding:20,marginBottom:12}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:14,fontWeight:600,color:"#434343"}}>{n.author}</span><span style={{fontSize:12,color:"#999"}}>{n.date}</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:14,fontWeight:600,color:"#434343"}}>{n.author}</span><span style={{fontSize:12,color:"#999"}}>{n.date?new Date(n.date+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}</span></div>
             <p style={{fontSize:14,color:"#555",lineHeight:1.6,margin:0}}>{n.text}</p>
           </div>))}
         </div>)}
@@ -1835,7 +1867,7 @@ function MatterDetail({matter,setMatters,setPage,setSelectedMatter,setSelectedCo
                   <tbody>{filesInView.map(d=>(<tr key={d.id} style={{borderBottom:"1px solid #f5f5f5"}} onMouseEnter={e=>e.currentTarget.style.background="#f2f3ef"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <td style={{padding:"10px 14px"}}><div style={{display:"flex",alignItems:"center",gap:8}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="#7A9C80" strokeWidth="1.5" fill="none"/><path d="M14 2v6h6" stroke="#7A9C80" strokeWidth="1.5"/></svg><span style={{fontWeight:500,color:"#7A9C80"}}>{d.name}</span></div></td>
                     <td style={{padding:"10px 14px",color:"#888"}}>{d.type}</td>
-                    <td style={{padding:"10px 14px",color:"#888"}}>{d.date}</td>
+                    <td style={{padding:"10px 14px",color:"#888"}}>{d.date?new Date(d.date+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}</td>
                     <td style={{padding:"10px 14px",color:"#888"}}>{d.size}</td>
                   </tr>))}</tbody>
                 </table>}
@@ -2087,7 +2119,7 @@ function MatterDetail({matter,setMatters,setPage,setSelectedMatter,setSelectedCo
                             <div style={{width:6,height:6,borderRadius:"50%",background:"#8B5CF6",flexShrink:0}}></div>
                             <div style={{flex:1,minWidth:0}}>
                               <div style={{fontSize:12,fontWeight:600,color:"#434343",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{as.title}</div>
-                              <div style={{fontSize:10,color:"#888"}}>Started {as.startedDate}{as.steps?" \u00b7 "+as.steps+" steps":""}</div>
+                              <div style={{fontSize:10,color:"#888"}}>Started {as.startedDate?new Date(as.startedDate+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}{as.steps?" \u00b7 "+as.steps+" steps":""}</div>
                             </div>
                             <button onClick={()=>stopSequence(as.id)} style={{background:"#FEE2E2",border:"1px solid #FECACA",cursor:"pointer",padding:"4px 10px",borderRadius:4,fontSize:11,fontWeight:600,color:"#DC2626",flexShrink:0,transition:"all 0.15s"}} onMouseEnter={e=>{e.currentTarget.style.background="#FCA5A5";e.currentTarget.style.color="#fff";}} onMouseLeave={e=>{e.currentTarget.style.background="#FEE2E2";e.currentTarget.style.color="#DC2626";}}>Delete</button>
                           </div>
@@ -2273,7 +2305,7 @@ function MatterDetail({matter,setMatters,setPage,setSelectedMatter,setSelectedCo
                         {c.automated&&<span style={{fontSize:10,fontWeight:600,background:"#FFFBEB",color:"#92400E",padding:"2px 8px",borderRadius:10,border:"1px solid #FCD34D",display:"flex",alignItems:"center",gap:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="#92400E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>Auto</span>}
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{fontSize:12,color:"#999",whiteSpace:"nowrap"}}>{c.date}</span>
+                        <span style={{fontSize:12,color:"#999",whiteSpace:"nowrap"}}>{c.date?new Date(c.date+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}</span>
                         <button onClick={async()=>{if(await confirm({title:"Delete Communication",message:"Delete this communication entry?",confirmLabel:"Delete"})){update({communications:matter.communications.filter(x=>x.id!==c.id),activeSequences:c.subject&&c.subject.startsWith("Sequence started:")?(matter.activeSequences||[]).filter(s=>s.title!==c.subject.replace("Sequence started: ","")):(matter.activeSequences||[])});}}} style={{background:"none",border:"none",cursor:"pointer",padding:4,opacity:0.4}} title="Delete communication"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polyline points="3,6 5,6 21,6" stroke="#666" strokeWidth="1.5" strokeLinecap="round"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="#666" strokeWidth="1.5" fill="none"/></svg></button>
                       </div>
                     </div>
@@ -2524,6 +2556,79 @@ function MatterDetail({matter,setMatters,setPage,setSelectedMatter,setSelectedCo
           </div>
         )}
       </div>
+      {/* Edit Matter Modal */}
+      {editingMatter&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50}} onClick={()=>setEditingMatter(false)}>
+          <div style={{background:"#fff",borderRadius:12,padding:"28px 32px",width:520,maxWidth:"90vw",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <h3 style={{fontSize:18,fontWeight:700,color:"#434343",margin:0}}>Edit Matter</h3>
+              <div style={{cursor:"pointer",fontSize:20,color:"#999",lineHeight:1}} onClick={()=>setEditingMatter(false)}>&times;</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>First Name</label><input type="text" value={matterEditForm.firstName||""} onChange={e=>setMatterEditForm({...matterEditForm,firstName:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Last Name</label><input type="text" value={matterEditForm.lastName||""} onChange={e=>setMatterEditForm({...matterEditForm,lastName:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Email</label><input type="email" value={matterEditForm.email||""} onChange={e=>setMatterEditForm({...matterEditForm,email:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Phone</label><input type="tel" value={matterEditForm.phone||""} onChange={e=>setMatterEditForm({...matterEditForm,phone:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#434343",cursor:"pointer"}}>
+                <input type="checkbox" checked={matterEditForm.isJoint||false} onChange={e=>setMatterEditForm({...matterEditForm,isJoint:e.target.checked,joint:matterEditForm.joint||{firstName:"",lastName:"",email:"",phone:""}})} style={{accentColor:"#7A9C80"}}/>
+                <span style={{fontWeight:600}}>Joint Case</span><span style={{color:"#888",fontWeight:400}}>(second client)</span>
+              </label>
+            </div>
+            {matterEditForm.isJoint&&(
+              <div style={{background:"#f9faf8",border:"1px solid #e0e0e0",borderRadius:8,padding:14,marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#7A9C80",marginBottom:10}}>Second Client (Spouse/Joint Filer)</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:10}}>
+                  <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>First Name</label><input type="text" value={(matterEditForm.joint||{}).firstName||""} onChange={e=>setMatterEditForm({...matterEditForm,joint:{...(matterEditForm.joint||{}),firstName:e.target.value}})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+                  <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Last Name</label><input type="text" value={(matterEditForm.joint||{}).lastName||""} onChange={e=>setMatterEditForm({...matterEditForm,joint:{...(matterEditForm.joint||{}),lastName:e.target.value}})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                  <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Email</label><input type="email" value={(matterEditForm.joint||{}).email||""} onChange={e=>setMatterEditForm({...matterEditForm,joint:{...(matterEditForm.joint||{}),email:e.target.value}})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+                  <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Phone</label><input type="tel" value={(matterEditForm.joint||{}).phone||""} onChange={e=>setMatterEditForm({...matterEditForm,joint:{...(matterEditForm.joint||{}),phone:e.target.value}})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+                </div>
+              </div>
+            )}
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Description</label>
+              <input type="text" value={matterEditForm.description||""} onChange={e=>setMatterEditForm({...matterEditForm,description:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Bankruptcy Type</label>
+              <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:"1px solid #d0d0d0"}}>
+                {BANKRUPTCY_TYPES.map(t=>(
+                  <div key={t} onClick={()=>setMatterEditForm({...matterEditForm,bankruptcyType:t})} style={{flex:1,padding:"9px 0",textAlign:"center",fontSize:12,fontWeight:600,cursor:"pointer",background:matterEditForm.bankruptcyType===t?"#7a9c80":"#fff",color:matterEditForm.bankruptcyType===t?"#fff":"#434343",transition:"all 0.15s"}}>
+                    {t}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Attorney</label><select value={matterEditForm.responsibleAttorney||""} onChange={e=>setMatterEditForm({...matterEditForm,responsibleAttorney:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}>{ATTORNEYS.map(a=><option key={a}>{a}</option>)}</select></div>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Staff</label><select value={matterEditForm.responsibleStaff||""} onChange={e=>setMatterEditForm({...matterEditForm,responsibleStaff:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}>{STAFF.map(s=><option key={s}>{s}</option>)}</select></div>
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Matter Stage</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {(dynamicMatterStages[matterEditForm.bankruptcyType]||dynamicMatterStages["Other"]||[]).map(s=>{
+                  const active=matterEditForm.matterStage===s;
+                  return(
+                    <div key={s} onClick={()=>setMatterEditForm({...matterEditForm,matterStage:s})} style={{padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",borderRadius:6,border:active?"2px solid #7A9C80":"1px solid #d0d0d0",background:active?"#E7EAE5":"#fff",color:active?"#3d5c43":"#888",transition:"all 0.15s"}}>
+                      {s}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <button onClick={()=>setEditingMatter(false)} style={{padding:"10px 20px",fontSize:13,fontWeight:500,border:"1px solid #d0d0d0",borderRadius:6,background:"#fff",color:"#434343",cursor:"pointer"}}>Cancel</button>
+              <button onClick={saveEditMatter} style={{padding:"10px 20px",fontSize:13,fontWeight:500,border:"none",borderRadius:6,background:"#7a9c80",color:"#fff",cursor:"pointer"}}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmModal}
     </div>
   );
@@ -2591,10 +2696,31 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
   const [newEvLocation,setNewEvLocation]=useState("");
   const [newEvAssignee,setNewEvAssignee]=useState("Matt McCune");
   const [calFilter,setCalFilter]=useState("upcoming");
+  const [editingLead,setEditingLead]=useState(false);
+  const [editForm,setEditForm]=useState({});
 
   if(!lead) return <div style={{padding:40,textAlign:"center",color:"#999"}}>Lead not found.</div>;
 
   const update=(u)=>setLeads(prev=>prev.map(l=>l.id===lead.id?{...l,...u}:l));
+  const openEdit=(ld)=>{
+    const secondContact=(ld.contacts||[]).find(c=>c.role==="Lead (Spouse)"||c.role==="Client (Spouse)");
+    const isJoint=!!secondContact;
+    const joint=secondContact?{firstName:secondContact.name.split(" ")[0],lastName:secondContact.name.split(" ").slice(1).join(" "),email:secondContact.email||"",phone:secondContact.phone||""}:{firstName:"",lastName:"",email:"",phone:""};
+    setEditForm({...ld,isJoint,joint});setEditingLead(true);
+  };
+  const saveEditLead=()=>{
+    const updated={...editForm};
+    const contacts=[{id:1,name:(updated.firstName||"")+" "+(updated.lastName||""),role:"Lead",email:updated.email||"",phone:updated.phone||""}];
+    if(updated.isJoint&&updated.joint&&updated.joint.firstName&&updated.joint.lastName){
+      contacts.push({id:2,name:updated.joint.firstName+" "+updated.joint.lastName,role:"Lead (Spouse)",email:updated.joint.email||"",phone:updated.joint.phone||""});
+      updated.clientFullName=updated.firstName+" "+updated.lastName+" & "+updated.joint.firstName+" "+updated.joint.lastName;
+    }else{
+      updated.clientFullName=updated.firstName+" "+updated.lastName;
+    }
+    updated.contacts=contacts;
+    update(updated);
+    setEditingLead(false);
+  };
   const addNote=()=>{if(!newNote.trim())return;update({notes:[{id:Date.now(),date:new Date().toISOString().split("T")[0],author:"Matt McCune",text:newNote},...lead.notes]});setNewNote("");};
   const addTask=()=>{if(!newTaskTitle.trim())return;const taskId=Date.now();const isClient=lead.contacts.some(c=>(c.role==="Client"||c.role==="Lead")&&c.name===newTaskAssignee);update({tasks:[...lead.tasks,{id:taskId,title:newTaskTitle,description:newTaskDesc,due:newTaskDue,status:"Pending",assignee:newTaskAssignee,assignedBy:"Matt McCune",completedDate:""}]});const savedAssignee=newTaskAssignee;const savedTitle=newTaskTitle;setNewTaskTitle("");setNewTaskDue("");setNewTaskDesc("");setNewTaskAssignee("Matt McCune");setShowNewTask(false);if(isClient){setTaskNotifyPopup({taskId,assignee:savedAssignee,title:savedTitle});}};
   const addBuiltTask=()=>{if(!selectedBuiltTask)return;const bt=BUILT_TASKS.find(t=>t.title===selectedBuiltTask);if(!bt)return;const taskId=Date.now();const isClient=lead.contacts.some(c=>(c.role==="Client"||c.role==="Lead")&&c.name===builtTaskAssignee);update({tasks:[...lead.tasks,{id:taskId,title:bt.title,description:"",due:builtTaskDue,status:"Pending",assignee:builtTaskAssignee,assignedBy:"Matt McCune",completedDate:""}]});const savedAssignee=builtTaskAssignee;const savedTitle=bt.title;setSelectedBuiltTask("");setBuiltTaskDue("");setBuiltTaskAssignee("Matt McCune");setShowNewTask(false);if(isClient){setTaskNotifyPopup({taskId,assignee:savedAssignee,title:savedTitle});}};
@@ -2702,7 +2828,7 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
         <p style={{color:"#666",fontSize:13,marginBottom:16,paddingLeft:32}}>{lead.bankruptcyType} Lead</p>
         <div style={{display:"flex",gap:8,marginBottom:16,paddingLeft:32}}>
           <button style={{padding:"7px 16px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",background:"#fff",color:"#434343",border:"1px solid #d0d0d0"}}>Share</button>
-          <button style={{padding:"7px 16px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",background:"#7A9C80",color:"#fff",border:"none"}}>Edit Lead</button>
+          <button onClick={()=>openEdit(lead)} style={{padding:"7px 16px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",background:"#7A9C80",color:"#fff",border:"none"}}>Edit Lead</button>
         </div>
         <div style={{display:"flex",gap:0,overflowX:"auto",paddingLeft:32}}>
           {tabs.map(t=><button key={t.key} onClick={()=>setTab(t.key)} style={{padding:"10px 18px",fontSize:13,fontWeight:tab===t.key?600:400,cursor:"pointer",color:tab===t.key?"#7A9C80":"#666",background:"none",border:"none",borderBottom:tab===t.key?"3px solid #7A9C80":"3px solid transparent",whiteSpace:"nowrap"}}>{t.label}</button>)}
@@ -2716,9 +2842,9 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
             <DetailRow label="Last name" value={lead.lastName}/>
             <DetailRow label="Email" value={<span style={{userSelect:"all",cursor:"text"}}>{lead.email}</span>}/>
             <DetailRow label="Phone" value={<span style={{userSelect:"all",cursor:"text"}}>{lead.phone}</span>}/>
-            <DetailRow label="Bankruptcy type" value={lead.bankruptcyType}/>
+            <DetailRow label="Bankruptcy type" value={<select value={lead.bankruptcyType} onChange={e=>update({bankruptcyType:e.target.value})} style={{padding:"4px 8px",borderRadius:4,border:"1px solid #d0d0d0",fontSize:13,background:"#fff"}}>{BANKRUPTCY_TYPES.map(t=><option key={t}>{t}</option>)}</select>}/>
             <DetailRow label="Lead stage" value={<select value={lead.leadStage} onChange={e=>handleLeadStageChange(e.target.value)} style={{padding:"4px 8px",borderRadius:4,border:"1px solid #d0d0d0",fontSize:13,background:"#fff"}}>{dynamicLeadStages.map(s=><option key={s} value={s}>{s==="Hired"?"Hired = Matter":s}</option>)}</select>}/>
-            <DetailRow label="Created" value={lead.createdDate}/>
+            <DetailRow label="Created" value={lead.createdDate?new Date(lead.createdDate+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}/>
             <DetailRow label="Notes" value={<EditVal field="leadNotes" value={lead.leadNotes}/>}/>
             <DetailRow label="Funds in Trust" value={<span style={{fontWeight:600,color:"#3d5c43"}}>{fmtDec((lead.accounting||{trust:[]}).trust.reduce((sum,e)=>e.type.includes("Received")||e.type==="Transfer from Operating"?sum+e.amount:sum-e.amount,0))}</span>}/>
           </Widget>
@@ -2744,7 +2870,7 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
             <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}><button onClick={addNote} disabled={!newNote.trim()} style={{background:newNote.trim()?"#7A9C80":"#ccc",color:"#fff",border:"none",borderRadius:6,padding:"8px 20px",fontSize:13,cursor:newNote.trim()?"pointer":"default"}}>Save Note</button></div>
           </div>
           {lead.notes.map(n=>(<div key={n.id} style={{background:"#fff",borderRadius:8,border:"1px solid #e0e0e0",padding:20,marginBottom:12}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:14,fontWeight:600,color:"#434343"}}>{n.author}</span><span style={{fontSize:12,color:"#999"}}>{n.date}</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:14,fontWeight:600,color:"#434343"}}>{n.author}</span><span style={{fontSize:12,color:"#999"}}>{n.date?new Date(n.date+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}</span></div>
             <p style={{fontSize:14,color:"#555",lineHeight:1.6,margin:0}}>{n.text}</p>
           </div>))}
         </div>)}
@@ -2825,7 +2951,7 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
                   <tbody>{filesInView.map(d=>(<tr key={d.id} style={{borderBottom:"1px solid #f5f5f5"}} onMouseEnter={e=>e.currentTarget.style.background="#f2f3ef"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <td style={{padding:"10px 14px"}}><div style={{display:"flex",alignItems:"center",gap:8}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="#7A9C80" strokeWidth="1.5" fill="none"/><path d="M14 2v6h6" stroke="#7A9C80" strokeWidth="1.5"/></svg><span style={{fontWeight:500,color:"#7A9C80"}}>{d.name}</span></div></td>
                     <td style={{padding:"10px 14px",color:"#888"}}>{d.type}</td>
-                    <td style={{padding:"10px 14px",color:"#888"}}>{d.date}</td>
+                    <td style={{padding:"10px 14px",color:"#888"}}>{d.date?new Date(d.date+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}</td>
                     <td style={{padding:"10px 14px",color:"#888"}}>{d.size}</td>
                   </tr>))}</tbody>
                 </table>}
@@ -3077,7 +3203,7 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
                             <div style={{width:6,height:6,borderRadius:"50%",background:"#8B5CF6",flexShrink:0}}></div>
                             <div style={{flex:1,minWidth:0}}>
                               <div style={{fontSize:12,fontWeight:600,color:"#434343",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{as.title}</div>
-                              <div style={{fontSize:10,color:"#888"}}>Started {as.startedDate}{as.steps?" \u00b7 "+as.steps+" steps":""}</div>
+                              <div style={{fontSize:10,color:"#888"}}>Started {as.startedDate?new Date(as.startedDate+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}{as.steps?" \u00b7 "+as.steps+" steps":""}</div>
                             </div>
                             <button onClick={()=>stopSequence(as.id)} style={{background:"#FEE2E2",border:"1px solid #FECACA",cursor:"pointer",padding:"4px 10px",borderRadius:4,fontSize:11,fontWeight:600,color:"#DC2626",flexShrink:0,transition:"all 0.15s"}} onMouseEnter={e=>{e.currentTarget.style.background="#FCA5A5";e.currentTarget.style.color="#fff";}} onMouseLeave={e=>{e.currentTarget.style.background="#FEE2E2";e.currentTarget.style.color="#DC2626";}}>Delete</button>
                           </div>
@@ -3263,7 +3389,7 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
                         {c.automated&&<span style={{fontSize:10,fontWeight:600,background:"#FFFBEB",color:"#92400E",padding:"2px 8px",borderRadius:10,border:"1px solid #FCD34D",display:"flex",alignItems:"center",gap:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="#92400E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>Auto</span>}
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{fontSize:12,color:"#999",whiteSpace:"nowrap"}}>{c.date}</span>
+                        <span style={{fontSize:12,color:"#999",whiteSpace:"nowrap"}}>{c.date?new Date(c.date+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}</span>
                         <button onClick={async()=>{if(await confirm({title:"Delete Communication",message:"Delete this communication entry?",confirmLabel:"Delete"})){update({communications:lead.communications.filter(x=>x.id!==c.id),activeSequences:c.subject&&c.subject.startsWith("Sequence started:")?(lead.activeSequences||[]).filter(s=>s.title!==c.subject.replace("Sequence started: ","")):(lead.activeSequences||[])});}}} style={{background:"none",border:"none",cursor:"pointer",padding:4,opacity:0.4}} title="Delete communication"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polyline points="3,6 5,6 21,6" stroke="#666" strokeWidth="1.5" strokeLinecap="round"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="#666" strokeWidth="1.5" fill="none"/></svg></button>
                       </div>
                     </div>
@@ -3524,6 +3650,75 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
               <button onClick={()=>{alert("Magic Link sent to "+taskNotifyPopup.assignee);setTaskNotifyPopup(null);}} style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:600,border:"none",borderRadius:6,background:"#7a9c80",color:"#fff",cursor:"pointer"}}>Magic Link</button>
             </div>
             <button onClick={()=>setTaskNotifyPopup(null)} style={{width:"100%",padding:"8px",fontSize:12,color:"#888",background:"none",border:"none",cursor:"pointer"}}>Skip — Don't notify</button>
+          </div>
+        </div>
+      )}
+      {/* Edit Lead Modal */}
+      {editingLead&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50}} onClick={()=>setEditingLead(false)}>
+          <div style={{background:"#fff",borderRadius:12,padding:"28px 32px",width:480,maxWidth:"90vw",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <h3 style={{fontSize:18,fontWeight:700,color:"#434343",margin:0}}>Edit Lead</h3>
+              <div style={{cursor:"pointer",fontSize:20,color:"#999",lineHeight:1}} onClick={()=>setEditingLead(false)}>&times;</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>First Name</label><input type="text" value={editForm.firstName||""} onChange={e=>setEditForm({...editForm,firstName:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Last Name</label><input type="text" value={editForm.lastName||""} onChange={e=>setEditForm({...editForm,lastName:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Email</label><input type="email" value={editForm.email||""} onChange={e=>setEditForm({...editForm,email:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+              <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Phone</label><input type="tel" value={editForm.phone||""} onChange={e=>setEditForm({...editForm,phone:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#434343",cursor:"pointer"}}>
+                <input type="checkbox" checked={editForm.isJoint||false} onChange={e=>setEditForm({...editForm,isJoint:e.target.checked,joint:editForm.joint||{firstName:"",lastName:"",email:"",phone:""}})} style={{accentColor:"#7A9C80"}}/>
+                <span style={{fontWeight:600}}>Joint Case</span><span style={{color:"#888",fontWeight:400}}>(second contact)</span>
+              </label>
+            </div>
+            {editForm.isJoint&&(
+              <div style={{background:"#f9faf8",border:"1px solid #e0e0e0",borderRadius:8,padding:14,marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#7A9C80",marginBottom:10}}>Second Contact (Spouse/Joint Filer)</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:10}}>
+                  <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>First Name</label><input type="text" value={(editForm.joint||{}).firstName||""} onChange={e=>setEditForm({...editForm,joint:{...(editForm.joint||{}),firstName:e.target.value}})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+                  <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Last Name</label><input type="text" value={(editForm.joint||{}).lastName||""} onChange={e=>setEditForm({...editForm,joint:{...(editForm.joint||{}),lastName:e.target.value}})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                  <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Email</label><input type="email" value={(editForm.joint||{}).email||""} onChange={e=>setEditForm({...editForm,joint:{...(editForm.joint||{}),email:e.target.value}})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+                  <div><label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Phone</label><input type="tel" value={(editForm.joint||{}).phone||""} onChange={e=>setEditForm({...editForm,joint:{...(editForm.joint||{}),phone:e.target.value}})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/></div>
+                </div>
+              </div>
+            )}
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Bankruptcy Type</label>
+              <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:"1px solid #d0d0d0"}}>
+                {BANKRUPTCY_TYPES.map(t=>(
+                  <div key={t} onClick={()=>setEditForm({...editForm,bankruptcyType:t})} style={{flex:1,padding:"9px 0",textAlign:"center",fontSize:12,fontWeight:600,cursor:"pointer",background:editForm.bankruptcyType===t?"#7a9c80":"#fff",color:editForm.bankruptcyType===t?"#fff":"#434343",transition:"all 0.15s"}}>
+                    {t}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Lead Stage</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {dynamicLeadStages.map(s=>{
+                  const active=editForm.leadStage===s;
+                  return(
+                    <div key={s} onClick={()=>setEditForm({...editForm,leadStage:s})} style={{padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",borderRadius:6,border:active?"2px solid #7A9C80":"1px solid #d0d0d0",background:active?"#E7EAE5":"#fff",color:active?"#3d5c43":"#888",transition:"all 0.15s"}}>
+                      {s}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={{fontSize:12,fontWeight:600,color:"#666",marginBottom:4,display:"block"}}>Notes</label>
+              <textarea value={editForm.leadNotes||""} onChange={e=>setEditForm({...editForm,leadNotes:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box",minHeight:60,resize:"vertical"}}/>
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <button onClick={()=>setEditingLead(false)} style={{padding:"10px 20px",fontSize:13,fontWeight:500,border:"1px solid #d0d0d0",borderRadius:6,background:"#fff",color:"#434343",cursor:"pointer"}}>Cancel</button>
+              <button onClick={saveEditLead} style={{padding:"10px 20px",fontSize:13,fontWeight:500,border:"none",borderRadius:6,background:"#7a9c80",color:"#fff",cursor:"pointer"}}>Save Changes</button>
+            </div>
           </div>
         </div>
       )}
@@ -3797,7 +3992,7 @@ function DashboardPage({matters,setPage,setSelectedMatter}){
                     <div style={{fontSize:12,fontWeight:500,color:"#434343",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title}</div>
                     <div style={{fontSize:10,color:"#999"}}>{t.matterName} — {t.assignee}</div>
                   </div>
-                  <div style={{fontSize:10,color:"#888",whiteSpace:"nowrap"}}>{t.due}</div>
+                  <div style={{fontSize:10,color:"#888",whiteSpace:"nowrap"}}>{t.due?new Date(t.due+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}</div>
                 </div>
               ))}
             </div>
@@ -4017,7 +4212,7 @@ function LeadsPage({leads,setLeads,matters,setMatters,setPage,setSelectedMatter,
                   <td style={{padding:"12px 14px",color:"#555",fontSize:14,userSelect:"all",cursor:"text"}} onClick={e=>e.stopPropagation()}>{lead.phone}</td>
                   <td style={{padding:"12px 14px"}}>{lead.bankruptcyType}</td>
                   <td style={{padding:"12px 14px"}}><span style={{background:sc.bg,color:sc.text,border:"1px solid "+sc.border,borderRadius:4,padding:"2px 10px",fontSize:12,fontWeight:500,whiteSpace:"nowrap"}}>{lead.leadStage}</span></td>
-                  <td style={{padding:"12px 14px",color:"#888"}}>{lead.createdDate}</td>
+                  <td style={{padding:"12px 14px",color:"#888"}}>{lead.createdDate?new Date(lead.createdDate+"T12:00:00").toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}):""}</td>
                 </tr>
               );
             })}
@@ -4087,7 +4282,7 @@ function LeadsPage({leads,setLeads,matters,setMatters,setPage,setSelectedMatter,
             </div>
             <div style={{marginBottom:20}}>
               <label style={labelStyle}>Notes</label>
-              <textarea value={editForm.notes||""} onChange={e=>setEditForm({...editForm,notes:e.target.value})} style={{...inputStyle,minHeight:60,resize:"vertical"}}/>
+              <textarea value={editForm.leadNotes||""} onChange={e=>setEditForm({...editForm,leadNotes:e.target.value})} style={{...inputStyle,minHeight:60,resize:"vertical"}}/>
             </div>
             <div style={{borderTop:"1px solid #eee",paddingTop:16,marginBottom:16}}>
               <button onClick={()=>{const lead=editForm;const subject=encodeURIComponent("Your Intake Form - McCune Legal");const body=encodeURIComponent("Hi "+lead.firstName+",\n\nThank you for reaching out to McCune Legal. To get started, please complete your intake form using the link below:\n\n[INTAKE FORM LINK]\n\nIf you have any questions, don't hesitate to reach out.\n\nBest regards,\nMcCune Legal");window.open("mailto:"+lead.email+"?subject="+subject+"&body="+body,"_blank");}} style={{width:"100%",padding:"11px 20px",fontSize:13,fontWeight:600,border:"none",borderRadius:6,background:"#434343",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
