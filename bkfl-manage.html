@@ -2878,9 +2878,8 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
         {tab==="documents"&&(()=>{
           const DOC_FOLDERS=[
             {name:"Intake Document Submissions",icon:"inbox",subs:["Personal Information","Income Docs","Asset Docs","Taxes","Other Docs"]},
-            {name:"Post Filing Documents for Trustee Hearing",icon:"file-request",subs:[]},
-            {name:"Requested Docs",icon:"file-request",subs:[]},
-            {name:"Template Documents",icon:"template",subs:[]}
+            {name:"Post Intake Document Followup Request",icon:"file-request",subs:[]},
+            {name:"Other - Misc Documents",icon:"template",subs:[]}
           ];
           const docs=lead.documents||[];
           const folderIcon=(icon)=>{
