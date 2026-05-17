@@ -2792,10 +2792,10 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
           <StageBadge stage={lead.leadStage}/>
         </div>
         <p style={{color:"#666",fontSize:13,marginBottom:16,paddingLeft:32}}>{lead.bankruptcyType} Lead</p>
-        <div style={{display:"flex",gap:8,marginBottom:16,paddingLeft:32}}>
+        {tab==="dashboard"&&<div style={{display:"flex",gap:8,marginBottom:16,paddingLeft:32}}>
           <button style={{padding:"7px 16px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",background:"#fff",color:"#434343",border:"1px solid #d0d0d0"}}>Share</button>
           <button onClick={()=>openEdit(lead)} style={{padding:"7px 16px",borderRadius:6,fontSize:13,fontWeight:500,cursor:"pointer",background:"#7A9C80",color:"#fff",border:"none"}}>Edit Lead</button>
-        </div>
+        </div>}
         <div style={{display:"flex",gap:0,overflowX:"auto",paddingLeft:32}}>
           {tabs.map(t=><button key={t.key} onClick={()=>setTab(t.key)} style={{padding:"10px 18px",fontSize:13,fontWeight:tab===t.key?600:400,cursor:"pointer",color:tab===t.key?"#7A9C80":"#666",background:"none",border:"none",borderBottom:tab===t.key?"3px solid #7A9C80":"3px solid transparent",whiteSpace:"nowrap"}}>{t.label}</button>)}
         </div>
@@ -2843,7 +2843,7 @@ function LeadDetail({lead,setLeads,setPage,setSelectedLead,matters,setMatters,se
 
         {tab==="documents"&&(()=>{
           const DOC_FOLDERS=[
-            {name:"Intake Document Submissions",icon:"inbox",subs:["Personal Information","Income Docs","Asset Docs","Taxes","Other Docs"]},
+            {name:"Intake Document Submissions",icon:"inbox",subs:["Intake Worksheet","Personal Information Documents","Income Information Documents","Assets Documents","Debts Documents","Tax Documents","Other Related Documents"]},
             {name:"Post Intake Document Followup Request",icon:"file-request",subs:[]},
             {name:"Other - Misc Documents",icon:"template",subs:[]}
           ];
