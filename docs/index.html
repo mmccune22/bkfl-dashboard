@@ -1241,6 +1241,14 @@ function AITab({item,isLead,update}){
   const adjustedCAI=belowMedian?0:Math.max(0,cmi-deductions);
   const passes=belowMedian||adjustedCAI<=0;
 
+  // Confidence Score: 20 base + up to 60 for pay stubs (10 per month) + 20 for tax doc match
+  const payStubMonths=Math.min(6,parseInt(mt.payStubMonths)||0);
+  const taxMatch=mt.taxMatch||false;
+  const confidenceScore=Math.min(100,20+(payStubMonths*10)+(taxMatch?20:0));
+  const confidenceColor=confidenceScore>=80?"#3d5c43":confidenceScore>=50?"#FF9800":"#c0392b";
+  const confidenceLevel=confidenceScore>=80?"High":confidenceScore>=50?"Medium":"Low";
+  const confidenceExplanation=confidenceScore>=80?"Strong documentation supports this analysis. Pay stubs and tax records are well-matched.":confidenceScore>=50?"Moderate documentation received. Additional pay stubs or tax verification would strengthen confidence.":"Limited documentation available. Analysis reliability is low until more records are provided.";
+
   const saveMeansTest=(field,val)=>{
     const updated={...mt,[field]:parseFloat(val)||0};
     if(update)update({meansTest:updated});
@@ -1332,12 +1340,6 @@ function AITab({item,isLead,update}){
   const complexityLevel=complexity.score>=70?"High":complexity.score>=40?"Medium":"Low";
   const complexityColor=complexity.score>=70?"#c0392b":complexity.score>=40?"#FF9800":"#3d5c43";
 
-  // Confidence Score
-  const confidenceScore=cmi>0?(belowMedian?92:(receivedCount>=7?78:55)):20;
-  const confidenceColor=confidenceScore>=80?"#3d5c43":confidenceScore>=50?"#FF9800":"#c0392b";
-  const confidenceLevel=confidenceScore>=80?"High":confidenceScore>=50?"Medium":"Low";
-  const confidenceExplanation=confidenceScore>=80?"Strong documentation supports this analysis. Pay stubs and tax records are consistent with reported income.":confidenceScore>=50?"Moderate documentation received. Additional pay stubs or tax verification would strengthen confidence.":"Limited documentation available. Key income verification documents are still needed.";
-
   // AI Attorney Summary
   const getAttorneySummary=()=>{
     const parts=[];
@@ -1425,6 +1427,7 @@ function AITab({item,isLead,update}){
             <div style={{fontSize:14,fontWeight:500,color:"#434343"}}>Current Monthly Income (CMI)</div>
             <div style={{fontSize:16,fontWeight:700,color:belowMedian?"#3d5c43":"#c0392b"}}>{fmtDec(cmi)}</div>
           </div>
+          {/* Confidence Score */}
           <div style={{padding:"14px 0"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={{fontSize:14,fontWeight:500,color:"#434343"}}>Confidence Score</div>
@@ -1498,7 +1501,7 @@ function AITab({item,isLead,update}){
           </div>
         </Widget>
 
-      </div>
+    </div>
     </div>
   );
 }
