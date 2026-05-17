@@ -1402,22 +1402,28 @@ function AITab({item,isLead,update}){
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>
 
         {/* AI Means Test Analysis */}
-        <Widget title="AI Means Test" collapsible={false} actions={<div style={{display:"flex",gap:6}}>{belowMedian?<span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:600,background:"#e8f4fd",color:"#1a73e8"}}>Below Median</span>:<span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:600,background:"#fde8e8",color:"#c0392b"}}>Above Median</span>}<span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:600,background:passes?"#dce8de":"#fde8e8",color:passes?"#3d5c43":"#c0392b",display:"flex",alignItems:"center",gap:4}}>{passes&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="#3d5c43" strokeWidth="2" strokeLinecap="round"/><path d="M22 4L12 14.01l-3-3" stroke="#3d5c43" strokeWidth="2" strokeLinecap="round"/></svg>}{passes?"Pass":"Fail"}</span></div>}>
+        <Widget title="AI Means Test Analysis" collapsible={false}>
+          {/* Result indicator */}
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:10,background:belowMedian?"#f0f7f1":"#fef2f2",marginBottom:16}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              {belowMedian?<><path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="#3d5c43" strokeWidth="2" strokeLinecap="round"/><path d="M22 4L12 14.01l-3-3" stroke="#3d5c43" strokeWidth="2" strokeLinecap="round"/></>:<><circle cx="12" cy="12" r="10" stroke="#c0392b" strokeWidth="2"/><path d="M15 9l-6 6M9 9l6 6" stroke="#c0392b" strokeWidth="2" strokeLinecap="round"/></>}
+            </svg>
+            <span style={{fontSize:14,fontWeight:600,color:belowMedian?"#3d5c43":"#c0392b"}}>{belowMedian?"Income is below the median":"Income is above the median"}</span>
+          </div>
+
+          {/* Median Family Income */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 0",borderBottom:"1px solid #f0f0f0"}}>
+            <div>
+              <div style={{fontSize:14,fontWeight:500,color:"#434343"}}>Median Family Income</div>
+              <div style={{fontSize:11,color:"#999",marginTop:2}}>{mt.state||"California"} • Household of {householdSize} (UST)</div>
+            </div>
+            <div style={{fontSize:16,fontWeight:700,color:"#1a73e8"}}>{fmtDec(medianThreshold)}</div>
+          </div>
+
+          {/* Annualized CMI */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 0",borderBottom:"1px solid #f0f0f0"}}>
             <div style={{fontSize:14,fontWeight:500,color:"#434343"}}>Current Monthly Income (CMI)</div>
-            <div style={{fontSize:14,fontWeight:600,color:"#3d5c43"}}>{fmtDec(cmi)}</div>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 0",borderBottom:"1px solid #f0f0f0"}}>
-            <div style={{fontSize:14,fontWeight:500,color:"#434343"}}>Median Income Threshold</div>
-            <div style={{fontSize:14,fontWeight:600,color:"#1a73e8"}}>{fmtDec(medianThreshold)}</div>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 0",borderBottom:"1px solid #f0f0f0"}}>
-            <div style={{fontSize:14,fontWeight:500,color:"#434343"}}>Applied Deductions</div>
-            <div style={{fontSize:14,fontWeight:600,color:"#888"}}>- {fmtDec(deductions)}</div>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 0",borderBottom:"1px solid #f0f0f0"}}>
-            <div style={{fontSize:14,fontWeight:500,color:"#434343"}}>Adjusted CAI</div>
-            <div style={{fontSize:14,fontWeight:700,color:adjustedCAI>0?"#c0392b":"#3d5c43"}}>{fmtDec(adjustedCAI)}</div>
+            <div style={{fontSize:16,fontWeight:700,color:belowMedian?"#3d5c43":"#c0392b"}}>{fmtDec(cmi)}</div>
           </div>
           <div style={{padding:"14px 0"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
@@ -1437,30 +1443,6 @@ function AITab({item,isLead,update}){
           </div>
           <div style={{marginTop:8,padding:"10px 14px",background:"#f8f9fa",borderRadius:6,borderLeft:"3px solid #d0d0d0"}}>
             <p style={{fontSize:11,lineHeight:1.5,color:"#888",margin:0,fontStyle:"italic"}}>Confidence is based on documentation completeness: 20-point base, up to 60 points for pay stubs received (10 per month of the 6-month lookback), and 20 points if reported income is verified against tax documents within a 90% match.</p>
-          </div>
-        </Widget>
-
-        {/* AI Means Test Input */}
-        <Widget title="AI Means Test Input" defaultOpen={false}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <div>
-              <label style={{display:"block",fontSize:12,color:"#888",marginBottom:4}}>Monthly Income (CMI)</label>
-              <input type="number" value={cmi||""} onChange={e=>saveMeansTest("cmi",e.target.value)} placeholder="0.00" style={{width:"100%",padding:"8px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/>
-            </div>
-            <div>
-              <label style={{display:"block",fontSize:12,color:"#888",marginBottom:4}}>Household Size</label>
-              <select value={householdSize} onChange={e=>saveMeansTest("householdSize",e.target.value)} style={{width:"100%",padding:"8px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,background:"#fff",boxSizing:"border-box"}}>
-                {[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{display:"block",fontSize:12,color:"#888",marginBottom:4}}>Median Threshold Override</label>
-              <input type="number" value={mt.medianThreshold||""} onChange={e=>saveMeansTest("medianThreshold",e.target.value)} placeholder={medianThresholds[householdSize]} style={{width:"100%",padding:"8px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/>
-            </div>
-            <div>
-              <label style={{display:"block",fontSize:12,color:"#888",marginBottom:4}}>Applied Deductions</label>
-              <input type="number" value={deductions||""} onChange={e=>saveMeansTest("deductions",e.target.value)} placeholder="0.00" style={{width:"100%",padding:"8px 12px",borderRadius:6,border:"1px solid #d0d0d0",fontSize:13,boxSizing:"border-box"}}/>
-            </div>
           </div>
         </Widget>
 
